@@ -10,7 +10,7 @@ register_asset "stylesheets/group-settings.scss"
 
 after_initialize do
   DiscoursePluginRegistry.register_editable_group_custom_field(:ip_blocks_list, self)
-  register_group_custom_field_type("ip_blocks_list", :list)
+  register_group_custom_field_type("ip_blocks_list", :string, max_length: 1000)
   add_to_serializer(:basic_group, :custom_fields) { object.custom_fields }
 
   on(:user_logged_in) do |user|
