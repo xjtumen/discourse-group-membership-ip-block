@@ -15,14 +15,35 @@ after_initialize do
     { ip_blocks_list: object.custom_fields[:ip_blocks_list] }
   end
 
-  on(:user_logged_in) do |user|
-    return unless SiteSetting.group_membership_ip_block_enabled
+  INTL_GROUP_NAME = "INTL"
+  @intl_group = Group.find_by(name: INTL_GROUP_NAME)
+  unless @intl_group
+    Group.new(name: INTL_GROUP_NAME)
+  end
+
+  def handle_user_ip(user)
+    ip_info = DiscourseIpInfo.get(user.ip_address, resolve_hostname: false)
+    # ip_reg_info = DiscourseIpInfo.get(user.registration_ip_address, resolve_hostname: false)
+
+    unless ip_info[:country_code] == "CN"
+      @intl_group.add(user)
+    end
 
     GroupCustomField
       .where(name: "ip_blocks_list")
       .each do |rule|
-        ips = rule.value.split.map { |ip| IPAddr.new(ip) }
-        ips.each { |ip| Group.find_by(id: rule.group).add(user) if ip.include?(user.ip_address) }
-      end
+      ips = rule.value.split.map { |ip| IPAddr.new(ip) }
+      ips.each { |ip| Group.find_by(id: rule.group).add(user) if ip.include?(user.ip_address) }
+    end
+  end
+
+  on(:user_updated) do |user|
+    return unless SiteSetting.group_membership_ip_block_enabled
+    handle_user_ip(user)
+  end
+
+  on(:user_logged_in) do |user|
+    return unless SiteSetting.group_membership_ip_block_enabled
+    handle_user_ip(user)
   end
 end
